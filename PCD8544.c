@@ -122,6 +122,28 @@ static uint8_t spiTransfering=0;
 static uint8_t FrameBuf[6][84];
 
 /**
+ * Write commands to PCD8544 chip
+ * @param data pointer to buffer with commands
+ * @param num number of commands
+ */
+static int32_t write_Commands(uint8_t *data, uint16_t num)
+{
+  int32_t retval=1;
+
+  if(!spiTransfering)
+  {
+	HAL_GPIO_WritePin(LCD_CE_PORT, LCD_CE_PIN, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LCD_DC_PORT, LCD_DC_PIN, GPIO_PIN_RESET);
+	spiTransfering=1;
+	HAL_SPI_Transmit_DMA(&LCD_SPI_INTERFACE, data, num);
+	retval=0;
+  }
+
+  return retval;
+}
+
+
+/**
  * Get pointer to FB
  */
 uint8_t *LCD_GetFB()
@@ -132,7 +154,7 @@ uint8_t *LCD_GetFB()
 /**
  * Write frame buffer to PCD8544 chip
  */
-int32_t LCD_Write_FB()
+int32_t LCD_WriteFB()
 {
   int32_t retval=1;
 
@@ -156,27 +178,7 @@ int32_t LCD_Busy()
 	return spiTransfering==1;
 }
 
-/**
- * Write commands to PCD8544 chip
- * for 8x6 fonts Y 0..5; X 0..13
- * @param data pointer to buffer with commands
- * @param num number of commands
- */
-int32_t LCD_Write_Commands(uint8_t *data, uint16_t num)
-{
-  int32_t retval=1;
 
-  if(!spiTransfering)
-  {
-	HAL_GPIO_WritePin(LCD_CE_PORT, LCD_CE_PIN, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(LCD_DC_PORT, LCD_DC_PIN, GPIO_PIN_RESET);
-	spiTransfering=1;
-	HAL_SPI_Transmit_DMA(&LCD_SPI_INTERFACE, data, num);
-	retval=0;
-  }
-
-  return retval;
-}
 
 
 /**
@@ -186,7 +188,7 @@ int32_t LCD_Write_Commands(uint8_t *data, uint16_t num)
  * @param PosY Y line number
  * @param str  string to write.
  */
-void LCD_Write_Line(uint8_t PosX, uint8_t PosY, char * str) {
+void LCD_WriteLine(uint8_t PosX, uint8_t PosY, char * str) {
   uint8_t line, ch;
   uint8_t *bpos;
 
@@ -226,14 +228,14 @@ void LCD_Init(void) {
   HAL_Delay(1);
   HAL_GPIO_WritePin(LCD_RESET_PORT, LCD_RESET_PIN, GPIO_PIN_SET);
 
-  LCD_Write_Commands(cmds,sizeof(cmds));
+  write_Commands(cmds,sizeof(cmds));
   memset( &FrameBuf[0][0],0x00,LCD_FB_SIZE);
 
   //synchronize
   while(LCD_Busy());
 
   //frame buffer initialized with zero's that clear SRAM of the PCD8544
-  LCD_Write_FB();
+  LCD_WriteFB();
 
   //synchronize
   while(LCD_Busy());
